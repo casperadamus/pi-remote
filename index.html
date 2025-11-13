@@ -13,37 +13,38 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #1a1a1a;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            color: #ffffff;
         }
 
         .container {
-            background: white;
+            background: #2d2d2d;
             padding: 40px;
             border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             max-width: 500px;
             width: 100%;
             text-align: center;
         }
 
         h1 {
-            color: #333;
+            color: #ffffff;
             margin-bottom: 10px;
             font-size: 28px;
         }
 
         p {
-            color: #666;
+            color: #cccccc;
             margin-bottom: 30px;
         }
 
         .config-section {
-            background: #f8f9fa;
+            background: #3a3a3a;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
@@ -51,7 +52,7 @@
         }
 
         .config-section h3 {
-            color: #333;
+            color: #ffffff;
             margin-bottom: 15px;
             font-size: 16px;
         }
@@ -62,7 +63,7 @@
 
         .form-group label {
             display: block;
-            color: #555;
+            color: #cccccc;
             margin-bottom: 5px;
             font-size: 14px;
             font-weight: 500;
@@ -71,44 +72,44 @@
         .form-group input {
             width: 100%;
             padding: 10px;
-            border: 2px solid #ddd;
+            border: 2px solid #555;
             border-radius: 8px;
             font-size: 14px;
             transition: border-color 0.3s;
+            background: #4a4a4a;
+            color: #ffffff;
         }
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #777;
         }
 
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+            background: #000000;
+            color: #ffffff;
+            border: 1px solid #333;
             padding: 15px 40px;
             font-size: 18px;
-            font-weight: bold;
-            border-radius: 50px;
+            font-weight: normal;
+            border-radius: 4px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
             width: 100%;
             margin-top: 10px;
+            font-family: inherit;
         }
 
         button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+            background: #333333;
         }
 
         button:active {
-            transform: translateY(0);
+            background: #000000;
         }
 
         button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
-            transform: none;
         }
 
         .message {
@@ -120,16 +121,16 @@
         }
 
         .message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 2px solid #c3e6cb;
+            background: #1a4a2e;
+            color: #4ade80;
+            border: 2px solid #16a34a;
             display: block;
         }
 
         .message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 2px solid #f5c6cb;
+            background: #4a1a1a;
+            color: #f87171;
+            border: 2px solid #dc2626;
             display: block;
         }
 
@@ -192,7 +193,7 @@
         </div>
 
         <button id="run-btn" onclick="runScript()">
-            Run Script on Pi
+            ON/OFF
         </button>
 
         <div id="message" class="message"></div>
@@ -248,7 +249,7 @@
             } finally {
                 // Reset button
                 button.disabled = false;
-                button.innerHTML = 'Run Script on Pi';
+                button.innerHTML = 'ON/OFF';
             }
         }
 
