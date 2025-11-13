@@ -175,7 +175,7 @@
             <h3>Pi Configuration</h3>
             <div class="form-group">
                 <label for="pi-ip">Pi IP Address</label>
-                <input type="text" id="pi-ip" placeholder="100.94.110.127" value="100.94.110.127">
+                <input type="text" id="pi-ip" placeholder="localhost" value="localhost">
             </div>
             <div class="form-group">
                 <label for="pi-user">Username</label>
@@ -199,7 +199,7 @@
     </div>
 
     <script>
-        const API_URL = 'https://fedora.tailcb64d2.ts.net/';
+        const API_URL = 'https://raspberrypi.tailcb64d2.ts.net/run-script';
 
         async function runScript() {
             const button = document.getElementById('run-btn');
