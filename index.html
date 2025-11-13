@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Remote Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .config-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+            display: block;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.online {
+            background: #28a745;
+            box-shadow: 0 0 8px #28a745;
+        }
+
+        .status-indicator.offline {
+            background: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🥧 Pi Remote Control</h1>
+        <p>Control your Raspberry Pi remotely</p>
+
+        <div class="config-section">
+            <h3>Pi Configuration</h3>
+            <div class="form-group">
+                <label for="pi-ip">Pi IP Address</label>
+                <input type="text" id="pi-ip" placeholder="100.94.110.127" value="100.94.110.127">
+            </div>
+            <div class="form-group">
+                <label for="pi-user">Username</label>
+                <input type="text" id="pi-user" placeholder="casperadamus" value="casperadamus">
+            </div>
+            <div class="form-group">
+                <label for="pi-pass">Password</label>
+                <input type="password" id="pi-pass" placeholder="••••" value="1016">
+            </div>
+            <div class="form-group">
+                <label for="pi-command">Command</label>
+                <input type="text" id="pi-command" placeholder="python3 lighton.py" value="python3 lighton.py">
+            </div>
+        </div>
+
+        <button id="run-btn" onclick="runScript()">
+            Run Script on Pi
+        </button>
+
+        <div id="message" class="message"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/run-script'; // Change this to your backend URL
+
+        async function runScript() {
+            const button = document.getElementById('run-btn');
+            const messageDiv = document.getElementById('message');
+            
+            // Get configuration values
+            const piIp = document.getElementById('pi-ip').value;
+            const piUser = document.getElementById('pi-user').value;
+            const piPass = document.getElementById('pi-pass').value;
+            const command = document.getElementById('pi-command').value;
+
+            // Validate inputs
+            if (!piIp || !piUser || !piPass || !command) {
+                showMessage('Please fill in all fields', 'error');
+                return;
+            }
+
+            // Disable button and show loading state
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner"></span>Connecting...';
+            messageDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        piIp,
+                        piUser,
+                        piPass,
+                        command
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showMessage(data.message || 'Command sent successfully!', 'success');
+                } else {
+                    showMessage(data.error || 'Failed to execute command', 'error');
+                }
+            } catch (error) {
+                showMessage('Error connecting to server: ' + error.message, 'error');
+            } finally {
+                // Reset button
+                button.disabled = false;
+                button.innerHTML = 'Run Script on Pi';
+            }
+        }
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = 'message ' + type;
+            messageDiv.style.display = 'block';
+        }
+
+        // Allow Enter key to trigger the button
+        document.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                runScript();
+            }
+        });
+    </script>
+</body>
+</html>
