@@ -1,21 +1,159 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const { Client } = require('ssh2');
+const { MongoClient } = require('mongodb');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3000;
 
+// MongoDB Configuration
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://user:<1016>@cluster0.fx7gw74.mongodb.net/?appName=Cluster0';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+
+let db;
+let usersCollection;
+
+// Connect to MongoDB
+async function connectToDatabase() {
+    try {
+        const client = await MongoClient.connect(MONGO_URI);
+        db = client.db('pi_remote');
+        usersCollection = db.collection('users');
+        console.log('Connected to MongoDB Atlas');
+    } catch (error) {
+        console.error('MongoDB connection error:', error.message);
+        console.log('Server will run without authentication until MongoDB is configured');
+    }
+}
+
+connectToDatabase();
+
 // Middleware
 app.use(cors()); // Allow requests from your GitHub Pages
 app.use(express.json());
+
+// Serve static files (index.html)
+app.use(express.static(path.join(__dirname)));
+
+// Authentication middleware
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+        req.user = user;
+        next();
+    });
+}
+
+// Login endpoint
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    if (!usersCollection) {
+        return res.status(503).json({ error: 'Database not connected. Please configure MongoDB.' });
+    }
+
+    try {
+        // Find user in database
+        const user = await usersCollection.findOne({ username });
+
+        if (!user) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+
+        // Check password
+        const validPassword = await bcrypt.compare(password, user.password);
+
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Invalid username or password' });
+        }
+
+        // Create JWT token
+        const token = jwt.sign(
+            { username: user.username, userId: user._id },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            message: 'Login successful',
+            token,
+            username: user.username
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Server error during login' });
+    }
+});
+
+// Verify token endpoint
+app.get('/verify-token', authenticateToken, (req, res) => {
+    res.json({ valid: true, username: req.user.username });
+});
+
+// Register endpoint (optional - for adding new users)
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    if (!usersCollection) {
+        return res.status(503).json({ error: 'Database not connected. Please configure MongoDB.' });
+    }
+
+    try {
+        // Check if user already exists
+        const existingUser = await usersCollection.findOne({ username });
+
+        if (existingUser) {
+            return res.status(400).json({ error: 'Username already exists' });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create user
+        const result = await usersCollection.insertOne({
+            username,
+            password: hashedPassword,
+            createdAt: new Date()
+        });
+
+        res.json({
+            message: 'User created successfully',
+            username
+        });
+    } catch (error) {
+        console.error('Registration error:', error);
+        res.status(500).json({ error: 'Server error during registration' });
+    }
+});
 
 // Health check endpoint
 app.get('/', (req, res) => {
     res.json({ status: 'Server is running', timestamp: new Date().toISOString() });
 });
 
-// Main endpoint to run SSH commands
-app.post('/run-script', async (req, res) => {
+// Main endpoint to run SSH commands (now protected)
+app.post('/run-script', authenticateToken, async (req, res) => {
     const { piIp, piUser, piPass, command } = req.body;
 
     // Validate inputs
@@ -87,9 +225,10 @@ app.post('/run-script', async (req, res) => {
         clearTimeout(timeout);
         if (!hasResponded) {
             hasResponded = true;
-            console.error('SSH Connection Error:', err.message);
+            console.error('SSH Connection Error:', err);
+            const errorMsg = err.message || err.code || err.level || 'Unknown SSH error';
             res.status(500).json({ 
-                error: 'Failed to connect to Pi: ' + err.message 
+                error: 'Failed to connect to Pi: ' + errorMsg 
             });
         }
     });
@@ -101,7 +240,11 @@ app.post('/run-script', async (req, res) => {
             port: 22,
             username: piUser,
             password: piPass,
-            readyTimeout: 5000
+            readyTimeout: 5000,
+            tryKeyboard: true,
+            algorithms: {
+                serverHostKey: ['ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521'],
+            }
         });
     } catch (err) {
         clearTimeout(timeout);
@@ -116,6 +259,6 @@ app.post('/run-script', async (req, res) => {
 
 // Start the server
 app.listen(PORT, () => {
-    console.log(`🚀 Pi Remote Server running on http://localhost:${PORT}`);
-    console.log(`📡 Ready to accept commands`);
+    console.log(`Pi Remote Server running on http://localhost:${PORT}`);
+    console.log(`Ready to accept commands`);
 });

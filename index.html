@@ -32,6 +32,60 @@
             text-align: center;
         }
 
+        h1 {
+            margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .login-container, .control-container {
+            display: none;
+        }
+
+        .login-container.active, .control-container.active {
+            display: block;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        input::placeholder {
+            color: #666;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #555;
+        }
+
+        .user-info {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            background: #4a1a1a;
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            background: #5a1a1a;
+        }
+
 
 
         button {
@@ -118,15 +172,126 @@
 </head>
 <body>
     <div class="container">
-        <button id="run-btn" onclick="runScript()">
-            ON/OFF
-        </button>
+        <!-- Login Form -->
+        <div id="login-container" class="login-container active">
+            <h1>Pi Remote Control</h1>
+            <input type="text" id="username" placeholder="Username" autocomplete="username">
+            <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+            <button onclick="login()">Login</button>
+            <div id="login-message" class="message"></div>
+        </div>
 
-        <div id="message" class="message"></div>
+        <!-- Control Panel (shown after login) -->
+        <div id="control-container" class="control-container">
+            <h1>Pi Remote Control</h1>
+            <div class="user-info">
+                Logged in as: <strong id="current-user"></strong>
+            </div>
+            <button id="run-btn" onclick="runScript()">
+                ON/OFF
+            </button>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+            <div id="message" class="message"></div>
+        </div>
     </div>
 
     <script>
-        const API_URL = 'https://raspberrypi.tailcb64d2.ts.net/run-script';
+        // Use Tailscale URL if accessing remotely, or localhost if local
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000'
+            : 'https://raspberrypi.tailcb64d2.ts.net';
+        let authToken = localStorage.getItem('authToken');
+        let currentUsername = localStorage.getItem('username');
+
+        // Check if user is already logged in on page load
+        window.onload = async function() {
+            if (authToken) {
+                const valid = await verifyToken();
+                if (valid) {
+                    showControlPanel();
+                } else {
+                    showLogin();
+                }
+            } else {
+                showLogin();
+            }
+        };
+
+        async function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('login-message');
+
+            if (!username || !password) {
+                showMessage('Please enter username and password', 'error', messageDiv);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    authToken = data.token;
+                    currentUsername = data.username;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('username', currentUsername);
+                    showControlPanel();
+                    showMessage('Login successful!', 'success', messageDiv);
+                } else {
+                    showMessage(data.error || 'Login failed', 'error', messageDiv);
+                }
+            } catch (error) {
+                showMessage('Error connecting to server: ' + error.message, 'error', messageDiv);
+            }
+        }
+
+        async function verifyToken() {
+            try {
+                const response = await fetch(`${API_URL}/verify-token`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    currentUsername = data.username;
+                    return true;
+                }
+                return false;
+            } catch (error) {
+                console.error('Token verification failed:', error);
+                return false;
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUsername = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('username');
+            showLogin();
+        }
+
+        function showLogin() {
+            document.getElementById('login-container').classList.add('active');
+            document.getElementById('control-container').classList.remove('active');
+            document.getElementById('password').value = '';
+        }
+
+        function showControlPanel() {
+            document.getElementById('login-container').classList.remove('active');
+            document.getElementById('control-container').classList.add('active');
+            document.getElementById('current-user').textContent = currentUsername;
+        }
 
         async function runScript() {
             const button = document.getElementById('run-btn');
@@ -144,10 +309,11 @@
             messageDiv.style.display = 'none';
 
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch(`${API_URL}/run-script`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
                     },
                     body: JSON.stringify({
                         piIp,
@@ -160,12 +326,15 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    showMessage(data.message || 'Command sent successfully!', 'success');
+                    showMessage(data.message || 'Command sent successfully!', 'success', messageDiv);
+                } else if (response.status === 401 || response.status === 403) {
+                    showMessage('Session expired. Please login again.', 'error', messageDiv);
+                    setTimeout(() => logout(), 2000);
                 } else {
-                    showMessage(data.error || 'Failed to execute command', 'error');
+                    showMessage(data.error || 'Failed to execute command', 'error', messageDiv);
                 }
             } catch (error) {
-                showMessage('Error connecting to server: ' + error.message, 'error');
+                showMessage('Error connecting to server: ' + error.message, 'error', messageDiv);
             } finally {
                 // Reset button
                 button.disabled = false;
@@ -173,17 +342,22 @@
             }
         }
 
-        function showMessage(text, type) {
-            const messageDiv = document.getElementById('message');
+        function showMessage(text, type, targetDiv = null) {
+            const messageDiv = targetDiv || document.getElementById('message');
             messageDiv.textContent = text;
             messageDiv.className = 'message ' + type;
             messageDiv.style.display = 'block';
         }
 
-        // Allow Enter key to trigger the button
+        // Allow Enter key to trigger login or run script
         document.addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
-                runScript();
+                const loginContainer = document.getElementById('login-container');
+                if (loginContainer.classList.contains('active')) {
+                    login();
+                } else {
+                    runScript();
+                }
             }
         });
     </script>

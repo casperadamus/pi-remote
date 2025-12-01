@@ -7,15 +7,23 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["raspberry-pi", "ssh", "remote-control"],
+  "keywords": [
+    "raspberry-pi",
+    "ssh",
+    "remote-control"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.0.0",
     "ssh2": "^1.14.0"
   },
   "devDependencies": {
