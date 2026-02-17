@@ -1,5 +1,6 @@
 # Pi Remote Control
 
+
 Simple HTML interface to run scripts on your Raspberry Pi via SSH.
 
 ## Setup
@@ -86,3 +87,4 @@ For better security:
 **"Connection timeout"**
 - Your Pi might be offline or unreachable
 - Check firewall settings
+
