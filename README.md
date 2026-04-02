@@ -1,5 +1,7 @@
 # Pi Remote Control
 
+<img width="3840" height="2160" alt="Untitled Project (3) (1)" src="https://github.com/user-attachments/assets/7521af95-debe-4f58-87f8-3282981ae8ee" />
+
 
 Simple HTML interface to run scripts on your Raspberry Pi via SSH.
 
